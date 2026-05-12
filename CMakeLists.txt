@@ -71,3 +71,4 @@ endfunction()
 # 子工程（每新增一个例子在此加一行）
 # ──────────────────────────────────
 add_subdirectory(src/01_hello_window)
+add_subdirectory(src/02_hello_triangle)

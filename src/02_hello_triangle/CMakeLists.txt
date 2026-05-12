@@ -1,0 +1,1 @@
+add_metal_executable(02_hello_triangle main.swift)
