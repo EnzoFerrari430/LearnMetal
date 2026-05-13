@@ -72,3 +72,4 @@ endfunction()
 # ──────────────────────────────────
 add_subdirectory(src/01_hello_window)
 add_subdirectory(src/02_hello_triangle)
+add_subdirectory(src/03_shaders)
