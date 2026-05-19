@@ -28,6 +28,34 @@ fragment float4 fragment_main(
 }
 """
 
+// 使用 类似OpenGL uniform 传递数据
+let shaderSourcewithUniform = """
+#include <metal_stdlib>
+using namespace metal;
+
+// 从顶点着色器传到片段着色器的结构体 → 相当于 OpenGL 的 out / in varying
+struct RasterizerData {
+    float4 position [[position]];   // 相当于 gl_Position
+};
+
+vertex RasterizerData vertex_main(
+    constant packed_float3 *vertices [[buffer(0)]],  // 相当于 layout(location=0) in vec3 aPos
+    uint vid [[vertex_id]]                            // 内置顶点索引
+) {
+    RasterizerData out;
+    out.position = float4(vertices[vid], 1.0);       // 相当于 gl_Position = vec4(aPos, 1.0)
+    return out;
+}
+
+fragment float4 fragment_main(
+    RasterizerData in [[stage_in]],
+    constant float4 &color [[buffer(1)]]
+) {
+    return color;
+}
+
+"""
+
 //
 class Renderer: NSObject, MTKViewDelegate {
     private let shader_: MetalShader
@@ -53,7 +81,7 @@ class Renderer: NSObject, MTKViewDelegate {
         // ── 用 MetalShader 管理着色器 ──
         let s = MetalShader(device: device)
         shader_ = s
-        guard shader_.updateLibrary(source: shaderSource) else {
+        guard shader_.updateLibrary(source: shaderSourcewithUniform) else {
             fatalError("着色器编译失败")
         }
 
@@ -104,6 +132,10 @@ class Renderer: NSObject, MTKViewDelegate {
 
         // ── 绑定顶点缓冲到 buffer(0) ≈ glBindBuffer + glVertexAttribPointer ──
         enc.setVertexBuffer(vertexBuffer_, offset: 0, index: 0)
+
+        // ── 设置 uniform ──
+        let color = SIMD4<Float>(0.0, 0.8, 1.0, 1.0)  // 青色
+        shader_.setFragmentUniform(enc, index: 1, value: color)
 
         // ── 绘制三角形 ≈ glDrawArrays(GL_TRIANGLES, 0, 3) ──
         enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: vertexCount_)
