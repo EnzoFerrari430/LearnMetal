@@ -133,8 +133,13 @@ class Renderer: NSObject, MTKViewDelegate {
         // ── 绑定顶点缓冲到 buffer(0) ≈ glBindBuffer + glVertexAttribPointer ──
         enc.setVertexBuffer(vertexBuffer_, offset: 0, index: 0)
 
+        // ── 获取当前运行时间 ≈ glfwGetTime() ──
+        let time = CACurrentMediaTime()
+        print("当前运行时间: \(time) 秒")
+        let r = Float(0.5 + 0.5 * sin(time)) // double转成float
+        
         // ── 设置 uniform ──
-        let color = SIMD4<Float>(0.0, 0.8, 1.0, 1.0)  // 青色
+        let color = SIMD4<Float>(r, 0.3, 0.8, 1.0)
         shader_.setFragmentUniform(enc, index: 1, value: color)
 
         // ── 绘制三角形 ≈ glDrawArrays(GL_TRIANGLES, 0, 3) ──
