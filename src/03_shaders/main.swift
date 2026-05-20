@@ -56,6 +56,33 @@ fragment float4 fragment_main(
 
 """
 
+let shaderSourcewith2attribute = """
+#include <metal_stdlib>
+using namespace metal;
+
+struct VertexOut {
+    float4 position [[position]]; // gl_Position
+    float4 color;                 // 传下去的颜色
+};
+
+// [[attribute(n)]] 对应 MTLVertexDescriptor.attributes[n]
+struct VertexIn {
+    float3 position [[attribute(0)]];
+    float3 color    [[attribute(1)]];
+};
+
+vertex VertexOut vertex_main(VertexIn in [[stage_in]]) {
+    VertexOut out;
+    out.position = float4(in.position, 1.0);
+    out.color    = float4(in.color, 1.0);
+    return out;
+}
+
+fragment float4 fragment_main(VertexOut in [[stage_in]]) {
+    return in.color;
+}
+"""
+
 //
 class Renderer: NSObject, MTKViewDelegate {
     private let shader_: MetalShader
@@ -68,9 +95,10 @@ class Renderer: NSObject, MTKViewDelegate {
         commandQueue_ = device.makeCommandQueue()!
 
         let vertices: [Float] = [
-            -0.8, -0.4, 0.0,   // 左下
-             0.8, -0.4, 0.0,   // 右下
-             0.0,  0.4, 0.0    // 顶部
+            // 位置           // 颜色
+            -0.8, -0.4, 0.0, 1.0, 0.0, 0.0,  // 左下
+             0.8, -0.4, 0.0, 0.0, 1.0, 0.0,  // 右下
+             0.0,  0.4, 0.0, 0.0, 0.0, 1.0  // 顶部
         ]
         vertexBuffer_ = device.makeBuffer(
             bytes: vertices,
@@ -81,16 +109,23 @@ class Renderer: NSObject, MTKViewDelegate {
         // ── 用 MetalShader 管理着色器 ──
         let s = MetalShader(device: device)
         shader_ = s
-        guard shader_.updateLibrary(source: shaderSourcewithUniform) else {
+        guard shader_.updateLibrary(source: shaderSourcewith2attribute) else {
             fatalError("着色器编译失败")
         }
 
         // 顶点描述符（描述顶点缓冲区的数据排布）
         let vertexDesc = MTLVertexDescriptor()
-        vertexDesc.attributes[0].format = .float3          // 3 个 float → 位置
-        vertexDesc.attributes[0].offset = 0
+        // attribute[0]: 位置 (float3) → 相当于 glVertexAttribPointer(0, 3, GL_FLOAT, ...)
+        vertexDesc.attributes[0].format = .float3
+        vertexDesc.attributes[0].offset = 0            // 每个顶点从第 0 字节开始
         vertexDesc.attributes[0].bufferIndex = 0
-        vertexDesc.layouts[0].stride = MemoryLayout<Float>.size * 3
+        // attribute[1]: 颜色 (float3) → 相当于 glVertexAttribPointer(1, 3, GL_FLOAT, ...)
+        vertexDesc.attributes[1].format = .float3
+        vertexDesc.attributes[1].offset = MemoryLayout<Float>.size * 3  // 位置占 12 字节后
+        vertexDesc.attributes[1].bufferIndex = 0
+
+        // layout[0]: 每个顶点总共占 6 个 float = 24 字节
+        vertexDesc.layouts[0].stride = MemoryLayout<Float>.size * 6
         vertexDesc.layouts[0].stepFunction = .perVertex
 
         // ── 用 MetalShader 创建管线 ──
@@ -130,19 +165,10 @@ class Renderer: NSObject, MTKViewDelegate {
         // ── 设置管线状态 ──
         enc.setRenderPipelineState(pipelineState_)
 
-        // ── 绑定顶点缓冲到 buffer(0) ≈ glBindBuffer + glVertexAttribPointer ──
+        // ── 绑定顶点缓冲 ──
         enc.setVertexBuffer(vertexBuffer_, offset: 0, index: 0)
 
-        // ── 获取当前运行时间 ≈ glfwGetTime() ──
-        let time = CACurrentMediaTime()
-        print("当前运行时间: \(time) 秒")
-        let r = Float(0.5 + 0.5 * sin(time)) // double转成float
-        
-        // ── 设置 uniform ──
-        let color = SIMD4<Float>(r, 0.3, 0.8, 1.0)
-        shader_.setFragmentUniform(enc, index: 1, value: color)
-
-        // ── 绘制三角形 ≈ glDrawArrays(GL_TRIANGLES, 0, 3) ──
+        // ── 绘制三角形 ──
         enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: vertexCount_)
 
         // ── 结束编码：告诉编码器指令记录完毕 ──
