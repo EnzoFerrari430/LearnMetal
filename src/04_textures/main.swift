@@ -7,24 +7,27 @@ using namespace metal;
 
 struct VertexOut {
     float4 position [[position]]; // gl_Position
-    float4 color;                 // 传下去的颜色
+    float2 texCoord;              // 纹理坐标传给片段着色器
 };
 
-// [[attribute(n)]] 对应 MTLVertexDescriptor.attributes[n]
 struct VertexIn {
     float3 position [[attribute(0)]];
-    float3 color    [[attribute(1)]];
+    float2 texCoord [[attribute(1)]];
 };
 
 vertex VertexOut vertex_main(VertexIn in [[stage_in]]) {
     VertexOut out;
     out.position = float4(in.position, 1.0);
-    out.color    = float4(in.color, 1.0);
+    out.texCoord = in.texCoord;
     return out;
 }
 
-fragment float4 fragment_main(VertexOut in [[stage_in]]) {
-    return in.color;
+fragment float4 fragment_main(
+    VertexOut in [[stage_in]],
+    texture2d<float> tex [[texture(0)]],
+    sampler smp [[sampler(0)]]
+) {
+    return tex.sample(smp, in.texCoord);
 }
 """
 
@@ -34,17 +37,19 @@ class Renderer: NSObject, MTKViewDelegate {
     private let vertexBuffer_: MTLBuffer
     private let indexBuffer_: MTLBuffer
     private let pipelineState_: MTLRenderPipelineState
+    private let texture_: MTLTexture
+    private let sampler_: MTLSamplerState
     private let indexCount_ = 6
     
     init(device: MTLDevice, pixelFormat: MTLPixelFormat) {
         commandQueue_ = device.makeCommandQueue()!
 
         let vertices: [Float] = [
-            // 位置           // 颜色
-            -0.8, -0.4, 0.0, 1.0, 0.0, 0.0,  // 左下
-             0.8, -0.4, 0.0, 0.0, 1.0, 0.0,  // 右下
-            -0.8,  0.4, 0.0, 0.0, 0.0, 1.0, // 左上
-             0.8,  0.4, 0.0, 1.0, 1.0, 0.0  // 右上
+            // 位置            // 纹理坐标
+            -0.8, -0.4, 0.0,   0.0, 1.0,  // 左下
+             0.8, -0.4, 0.0,   1.0, 1.0,  // 右下
+            -0.8,  0.4, 0.0,   0.0, 0.0,  // 左上
+             0.8,  0.4, 0.0,   1.0, 0.0   // 右上
         ]
         vertexBuffer_ = device.makeBuffer(
             bytes: vertices,
@@ -71,20 +76,38 @@ class Renderer: NSObject, MTKViewDelegate {
             fatalError("着色器编译失败")
         }
 
-        // 顶点描述符（描述顶点缓冲区的数据排布）
+        // 顶点描述符
         let vertexDesc = MTLVertexDescriptor()
-        // attribute[0]: 位置 (float3) → 相当于 glVertexAttribPointer(0, 3, GL_FLOAT, ...)
+        // attribute[0]: 位置 float3
         vertexDesc.attributes[0].format = .float3
-        vertexDesc.attributes[0].offset = 0            // 每个顶点从第 0 字节开始
+        vertexDesc.attributes[0].offset = 0
         vertexDesc.attributes[0].bufferIndex = 0
-        // attribute[1]: 颜色 (float3) → 相当于 glVertexAttribPointer(1, 3, GL_FLOAT, ...)
-        vertexDesc.attributes[1].format = .float3
-        vertexDesc.attributes[1].offset = MemoryLayout<Float>.size * 3  // 位置占 12 字节后
+        // attribute[1]: 纹理坐标 float2
+        vertexDesc.attributes[1].format = .float2
+        vertexDesc.attributes[1].offset = MemoryLayout<Float>.size * 3
         vertexDesc.attributes[1].bufferIndex = 0
-
-        // layout[0]: 每个顶点总共占 6 个 float = 24 字节
-        vertexDesc.layouts[0].stride = MemoryLayout<Float>.size * 6
+        // layout: stride = 5 个 float = 20 字节
+        vertexDesc.layouts[0].stride = MemoryLayout<Float>.size * 5
         vertexDesc.layouts[0].stepFunction = .perVertex
+
+        // ── 加载纹理 container.jpg ──
+        let loader = MTKTextureLoader(device: device)
+        guard let texURL = Bundle.main.url(
+            forResource: "container",
+            withExtension: "jpg",
+            subdirectory: "textures"
+        ) else {
+            fatalError("找不到 container.jpg")
+        }
+        texture_ = try! loader.newTexture(URL: texURL, options: [
+            .origin: MTKTextureLoader.Origin.flippedVertically  // Metal y 轴向上，UIKit 向下
+        ])
+
+        // ── 采样器 ──
+        let samplerDesc = MTLSamplerDescriptor()
+        samplerDesc.minFilter = .linear
+        samplerDesc.magFilter = .linear
+        sampler_ = device.makeSamplerState(descriptor: samplerDesc)!
 
         // ── 用 MetalShader 创建管线 ──
         guard let p = shader_.makeRenderPipeline(
@@ -125,6 +148,10 @@ class Renderer: NSObject, MTKViewDelegate {
 
         // ── 绑定顶点缓冲 ──
         enc.setVertexBuffer(vertexBuffer_, offset: 0, index: 0)
+
+        // ── 绑定纹理和采样器 ≈ glBindTexture + glTexParameteri ──
+        enc.setFragmentTexture(texture_, index: 0)
+        enc.setFragmentSamplerState(sampler_, index: 0)
 
         // ── 绘制（索引绘制）≈ glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0) ──
         enc.drawIndexedPrimitives(

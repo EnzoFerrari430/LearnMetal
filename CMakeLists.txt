@@ -59,7 +59,6 @@ function(target_add_resources TARGET_NAME)
         file(RELATIVE_PATH res_rel "${CMAKE_SOURCE_DIR}" "${res_abs}")
         string(REGEX REPLACE "^resources/" "" res_bundle_path "${res_rel}")
         get_filename_component(res_dir "${res_bundle_path}" DIRECTORY)
-        set(res_dir "Resources/${res_dir}")
         set_source_files_properties(${res_abs} PROPERTIES
             MACOSX_PACKAGE_LOCATION "${res_dir}"
         )
