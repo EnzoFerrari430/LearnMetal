@@ -1,1 +1,1 @@
-add_metal_executable(01_hello_window main.swift)
+add_metal_executable(HelloWindow main.swift)

@@ -1,1 +1,1 @@
-add_metal_executable(03_shader main.swift MetalShader.swift)
+add_metal_executable(Shader main.swift MetalShader.swift)

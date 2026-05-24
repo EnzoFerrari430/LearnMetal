@@ -1,0 +1,23 @@
+add_metal_executable(Textures main.swift MetalShader.swift
+    RESOURCES
+        ${CMAKE_SOURCE_DIR}/resources/textures/container.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/container2.png
+        ${CMAKE_SOURCE_DIR}/resources/textures/container2_specular.png
+        ${CMAKE_SOURCE_DIR}/resources/textures/brickwall.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/brickwall_normal.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/marble.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/metal.png
+        ${CMAKE_SOURCE_DIR}/resources/textures/wood.png
+        ${CMAKE_SOURCE_DIR}/resources/textures/grass.png
+        ${CMAKE_SOURCE_DIR}/resources/textures/window.png
+        ${CMAKE_SOURCE_DIR}/resources/textures/matrix.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/bricks2.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/bricks2_disp.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/bricks2_normal.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/skybox/right.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/skybox/left.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/skybox/top.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/skybox/bottom.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/skybox/front.jpg
+        ${CMAKE_SOURCE_DIR}/resources/textures/skybox/back.jpg
+)
