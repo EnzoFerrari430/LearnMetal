@@ -1,4 +1,4 @@
-add_metal_executable(Textures main.swift MetalShader.swift
+add_metal_executable(TextureDemo main.swift MetalShader.swift
     RESOURCES
         ${CMAKE_SOURCE_DIR}/resources/textures/container.jpg
         ${CMAKE_SOURCE_DIR}/resources/textures/container2.png

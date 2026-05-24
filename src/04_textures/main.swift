@@ -32,8 +32,9 @@ class Renderer: NSObject, MTKViewDelegate {
     private let shader_: MetalShader
     private let commandQueue_: MTLCommandQueue
     private let vertexBuffer_: MTLBuffer
+    private let indexBuffer_: MTLBuffer
     private let pipelineState_: MTLRenderPipelineState
-    private let vertexCount_ = 3
+    private let indexCount_ = 6
     
     init(device: MTLDevice, pixelFormat: MTLPixelFormat) {
         commandQueue_ = device.makeCommandQueue()!
@@ -42,11 +43,24 @@ class Renderer: NSObject, MTKViewDelegate {
             // 位置           // 颜色
             -0.8, -0.4, 0.0, 1.0, 0.0, 0.0,  // 左下
              0.8, -0.4, 0.0, 0.0, 1.0, 0.0,  // 右下
-             0.0,  0.4, 0.0, 0.0, 0.0, 1.0  // 顶部
+            -0.8,  0.4, 0.0, 0.0, 0.0, 1.0, // 左上
+             0.8,  0.4, 0.0, 1.0, 1.0, 0.0  // 右上
         ]
         vertexBuffer_ = device.makeBuffer(
             bytes: vertices,
             length: vertices.count * MemoryLayout<Float>.size,
+            options: []
+        )!
+
+        // 索引 buffer → 相当于 OpenGL 的 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, indices)
+        // 两个三角形：左下-右下-左上  和  右下-右上-左上
+        let indices: [UInt32] = [
+            0, 1, 2,  // 第一个三角形
+            1, 3, 2   // 第二个三角形
+        ]
+        indexBuffer_ = device.makeBuffer(
+            bytes: indices,
+            length: indices.count * MemoryLayout<UInt32>.size,
             options: []
         )!
 
@@ -112,8 +126,14 @@ class Renderer: NSObject, MTKViewDelegate {
         // ── 绑定顶点缓冲 ──
         enc.setVertexBuffer(vertexBuffer_, offset: 0, index: 0)
 
-        // ── 绘制三角形 ──
-        enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: vertexCount_)
+        // ── 绘制（索引绘制）≈ glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0) ──
+        enc.drawIndexedPrimitives(
+            type: .triangle,
+            indexCount: indexCount_,
+            indexType: .uint32,
+            indexBuffer: indexBuffer_,
+            indexBufferOffset: 0
+        )
 
         // ── 结束编码：告诉编码器指令记录完毕 ──
         enc.endEncoding()

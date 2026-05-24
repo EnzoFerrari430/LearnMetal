@@ -56,10 +56,10 @@ set(DEVELOPMENT_TEAM "" CACHE STRING "Apple Developer Team ID (e.g. ABC123DEFG)"
 function(target_add_resources TARGET_NAME)
     foreach(res IN LISTS ARGN)
         get_filename_component(res_abs ${res} ABSOLUTE)
-        # 计算相对于 resources/ 的路径，作为 bundle 中的存放位置
         file(RELATIVE_PATH res_rel "${CMAKE_SOURCE_DIR}" "${res_abs}")
         string(REGEX REPLACE "^resources/" "" res_bundle_path "${res_rel}")
         get_filename_component(res_dir "${res_bundle_path}" DIRECTORY)
+        set(res_dir "Resources/${res_dir}")
         set_source_files_properties(${res_abs} PROPERTIES
             MACOSX_PACKAGE_LOCATION "${res_dir}"
         )
