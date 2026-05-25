@@ -66,6 +66,11 @@ final class MetalShader {
         // 通用像素格式
         desc.colorAttachments[0].pixelFormat = colorPixelFormat
         desc.depthAttachmentPixelFormat = depthPixelFormat
+
+        // 启用 alpha 混合 (透明 PNG 叠加)
+        desc.colorAttachments[0].isBlendingEnabled = true
+        desc.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
+        desc.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
         
         // 创建管线
         do {

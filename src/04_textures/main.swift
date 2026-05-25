@@ -28,10 +28,15 @@ vertex VertexOut vertex_main(VertexIn in [[stage_in]]) {
 fragment float4 fragment_main(
     VertexOut in [[stage_in]],
     texture2d<float> tex [[texture(0)]],
-    sampler smp [[sampler(0)]]
+    sampler smp [[sampler(0)]],
+    texture2d<float> tex2 [[texture(1)]],
+    sampler smp2 [[sampler(1)]]
 ) {
     float4 texColor = tex.sample(smp, in.texCoord);
-    return mix(texColor, float4(in.color, 1.0), 0.3);  // 70%纹理 + 30%颜色
+    float4 texColor2 = tex2.sample(smp2, in.texCoord);
+    // grass 的 alpha 作为混合系数: alpha=1 → 显示grass, alpha=0 → 显示container
+    float4 texColorFinal = mix(texColor, texColor2, texColor2.a);
+    return mix(texColorFinal, float4(in.color, 1.0), 0.3);  // 70%纹理 + 30%颜色
 }
 """
 
@@ -42,6 +47,7 @@ class Renderer: NSObject, MTKViewDelegate {
     private let indexBuffer_: MTLBuffer
     private let pipelineState_: MTLRenderPipelineState
     private let texture_: MTLTexture
+    private let texture2_: MTLTexture
     private let sampler_: MTLSamplerState
     private let indexCount_ = 6
     
@@ -110,6 +116,16 @@ class Renderer: NSObject, MTKViewDelegate {
         texture_ = try! loader.newTexture(URL: texURL, options: [
             .origin: MTKTextureLoader.Origin.flippedVertically  // Metal y 轴向上，UIKit 向下
         ])
+        
+        // 加载grass.png
+        guard let grassURL = Bundle.main.url(
+            forResource: "grass",
+            withExtension: "png",
+            subdirectory: "textures"
+        ) else {
+            fatalError("找不到 grass.png")
+        }
+        texture2_ = try! loader.newTexture(URL: grassURL, options: nil) // 不使用任何option
 
         // ── 采样器 ──
         let samplerDesc = MTLSamplerDescriptor()
@@ -160,6 +176,10 @@ class Renderer: NSObject, MTKViewDelegate {
         // ── 绑定纹理和采样器 ≈ glBindTexture + glTexParameteri ──
         enc.setFragmentTexture(texture_, index: 0)
         enc.setFragmentSamplerState(sampler_, index: 0)
+        
+        // 绑定第二个采样器
+        enc.setFragmentTexture(texture2_, index: 1)
+        enc.setFragmentSamplerState(sampler_, index: 1)
 
         // ── 绘制（索引绘制）≈ glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0) ──
         enc.drawIndexedPrimitives(
