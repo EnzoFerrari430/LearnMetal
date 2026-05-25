@@ -7,17 +7,20 @@ using namespace metal;
 
 struct VertexOut {
     float4 position [[position]]; // gl_Position
+    float3 color;
     float2 texCoord;              // 纹理坐标传给片段着色器
 };
 
 struct VertexIn {
     float3 position [[attribute(0)]];
-    float2 texCoord [[attribute(1)]];
+    float3 color [[attribute(1)]];
+    float2 texCoord [[attribute(2)]];
 };
 
 vertex VertexOut vertex_main(VertexIn in [[stage_in]]) {
     VertexOut out;
     out.position = float4(in.position, 1.0);
+    out.color = in.color;
     out.texCoord = in.texCoord;
     return out;
 }
@@ -27,7 +30,8 @@ fragment float4 fragment_main(
     texture2d<float> tex [[texture(0)]],
     sampler smp [[sampler(0)]]
 ) {
-    return tex.sample(smp, in.texCoord);
+    float4 texColor = tex.sample(smp, in.texCoord);
+    return mix(texColor, float4(in.color, 1.0), 0.3);  // 70%纹理 + 30%颜色
 }
 """
 
@@ -45,11 +49,11 @@ class Renderer: NSObject, MTKViewDelegate {
         commandQueue_ = device.makeCommandQueue()!
 
         let vertices: [Float] = [
-            // 位置            // 纹理坐标
-            -0.8, -0.4, 0.0,   0.0, 1.0,  // 左下
-             0.8, -0.4, 0.0,   1.0, 1.0,  // 右下
-            -0.8,  0.4, 0.0,   0.0, 0.0,  // 左上
-             0.8,  0.4, 0.0,   1.0, 0.0   // 右上
+            // 位置           // 颜色        // 纹理坐标
+            -0.8, -0.4, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,  // 左下
+             0.8, -0.4, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0,  // 右下
+            -0.8,  0.4, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,  // 左上
+             0.8,  0.4, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0   // 右上
         ]
         vertexBuffer_ = device.makeBuffer(
             bytes: vertices,
@@ -82,12 +86,16 @@ class Renderer: NSObject, MTKViewDelegate {
         vertexDesc.attributes[0].format = .float3
         vertexDesc.attributes[0].offset = 0
         vertexDesc.attributes[0].bufferIndex = 0
-        // attribute[1]: 纹理坐标 float2
-        vertexDesc.attributes[1].format = .float2
+        // attribute[1]: 颜色 float3
+        vertexDesc.attributes[1].format = .float3
         vertexDesc.attributes[1].offset = MemoryLayout<Float>.size * 3
         vertexDesc.attributes[1].bufferIndex = 0
-        // layout: stride = 5 个 float = 20 字节
-        vertexDesc.layouts[0].stride = MemoryLayout<Float>.size * 5
+        // attribute[2]: 纹理坐标 float2
+        vertexDesc.attributes[2].format = .float2
+        vertexDesc.attributes[2].offset = MemoryLayout<Float>.size * 6
+        vertexDesc.attributes[2].bufferIndex = 0
+        // layout: stride = 8 个 float = 32 字节
+        vertexDesc.layouts[0].stride = MemoryLayout<Float>.size * 8
         vertexDesc.layouts[0].stepFunction = .perVertex
 
         // ── 加载纹理 container.jpg ──
