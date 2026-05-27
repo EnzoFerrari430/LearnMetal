@@ -1,0 +1,1 @@
+add_metal_executable(Transformations main.swift MetalShader.swift)
